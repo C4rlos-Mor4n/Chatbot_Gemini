@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { CoreClass } = require("@bot-whatsapp/bot");
+const Queue = require("queue-promise");
 require("dotenv").config();
 
 /**
@@ -12,6 +13,11 @@ require("dotenv").config();
  * @extends CoreClass
  */
 class GeminiBot extends CoreClass {
+  static queue = new Queue({
+    concurrent: 1,
+    interval: 100,
+  });
+
   /**
    * Constructor de la clase GeminiBot.
    * @param {object} database - Base de datos utilizada por el bot.
@@ -68,11 +74,13 @@ class GeminiBot extends CoreClass {
 
     this.updateUserContext(senderId, messageBody, "user");
 
-    const response = await this.generateAIResponse(messageBody, senderId);
+    GeminiBot.queue.enqueue(async () => {
+      const response = await this.generateAIResponse(messageBody, senderId);
 
-    this.updateUserContext(senderId, response, "ia");
+      this.updateUserContext(senderId, response, "ia");
 
-    await this.sendResponse(senderId, response);
+      await this.sendResponse(senderId, response);
+    });
   };
 
   /**
